@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from vqa_benchmark.evaluation.parser import normalize_answer, parse_yes_no
 
@@ -10,6 +10,42 @@ def get_qtype(row: Dict) -> str:
 
 def get_id(row: Dict) -> str:
     return str(row.get("qa_id") or row.get("qid"))
+
+
+def map_option_letter_to_text(pred: str, options: Optional[List[str]]) -> Optional[str]:
+    """
+    Map model outputs like 'A', 'A.', 'A. Yes', '(A)' to the corresponding option text.
+    This is needed because many VLMs answer MC questions with option letters.
+    """
+    if not options:
+        return None
+
+    pred_norm = normalize_answer(pred)
+    if not pred_norm:
+        return None
+
+    first = pred_norm.split()[0].strip(".):-(")
+
+    if len(first) == 1 and first.isalpha():
+        idx = ord(first.upper()) - ord("A")
+        if 0 <= idx < len(options):
+            return str(options[idx])
+
+    return None
+
+
+def canonical_prediction(row: Dict, pred_key: str = "prediction") -> str:
+    pred = row.get(pred_key, "")
+
+    mapped = map_option_letter_to_text(
+        pred=pred,
+        options=row.get("options_used") or row.get("options"),
+    )
+
+    if mapped is not None:
+        return mapped
+
+    return pred
 
 
 def exact_match(pred: str, gt: str) -> bool:
@@ -61,7 +97,7 @@ def compute_accuracy(
     for row in rows:
         qtype = get_qtype(row)
         gt = row.get(answer_key, "")
-        pred = row.get(pred_key, "")
+        pred = canonical_prediction(row, pred_key=pred_key)
 
         if is_yes_no_gt(gt):
             correct += yes_no_match(pred, gt)
@@ -89,8 +125,8 @@ def compute_flip_rate(
     flips = 0
 
     for qid in common_ids:
-        original_pred = normalize_answer(original_by_id[qid].get(pred_key, ""))
-        perturbed_pred = normalize_answer(perturbed_by_id[qid].get(pred_key, ""))
+        original_pred = normalize_answer(canonical_prediction(original_by_id[qid], pred_key))
+        perturbed_pred = normalize_answer(canonical_prediction(perturbed_by_id[qid], pred_key))
         flips += original_pred != perturbed_pred
 
     return flips / len(common_ids)
