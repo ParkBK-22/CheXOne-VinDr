@@ -1,0 +1,42 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+venv/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data
+data/raw/
+data/processed/
+data/perturbed/
+outputs/predictions/
+outputs/samples/
+
+# Results
+outputs/metrics/*.json
+outputs/metrics/*.csv
+outputs/tables/*.csv
+outputs/tables/*.xlsx
+outputs/figures/*.png
+outputs/figures/*.pdf
+
+# External datasets
+external_datasets/vindr_cxr/data/
+
+# Model/cache
+.cache/
+hf_cache/
+checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+wandb/

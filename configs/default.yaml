@@ -1,0 +1,27 @@
+﻿project:
+  name: vindr-cxr-faithfulness-vqa
+  seed: 42
+
+data:
+  vindr_root: data/raw/vindr-cxr/1.0.0
+  image_root: data/raw/vindr-cxr/1.0.0
+  qa_path: data/qa/vindr_test_qa.jsonl
+  lesion_perturbed_root: data/perturbed/lesion
+  non_lesion_perturbed_root: data/perturbed/non_lesion
+
+model:
+  name: chexone
+  hf_id: StanfordAIMI/CheXOne
+  device_map: auto
+  torch_dtype: auto
+  max_new_tokens: 32
+
+inference:
+  prompt_suffix: "Answer briefly."
+
+outputs:
+  prediction_dir: outputs/predictions
+  metric_dir: outputs/metrics
+  table_dir: outputs/tables
+  figure_dir: outputs/figures
+  sample_dir: outputs/samples
