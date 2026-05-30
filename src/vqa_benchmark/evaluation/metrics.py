@@ -1,15 +1,51 @@
-﻿from collections import defaultdict
+from collections import defaultdict
 from typing import Dict, List
 
 from vqa_benchmark.evaluation.parser import normalize_answer, parse_yes_no
+
+
+def get_qtype(row: Dict) -> str:
+    return row.get("question_type") or row.get("qtype") or "unknown"
+
+
+def get_id(row: Dict) -> str:
+    return str(row.get("qa_id") or row.get("qid"))
 
 
 def exact_match(pred: str, gt: str) -> bool:
     return normalize_answer(pred) == normalize_answer(gt)
 
 
+def option_match(pred: str, gt: str) -> bool:
+    pred_norm = normalize_answer(pred)
+    gt_norm = normalize_answer(gt)
+
+    if pred_norm == gt_norm:
+        return True
+
+    # Allows outputs like "The answer is Cardiomegaly."
+    if gt_norm and gt_norm in pred_norm:
+        return True
+
+    return False
+
+
+def numeric_match(pred: str, gt: str) -> bool:
+    pred_norm = normalize_answer(pred)
+    gt_norm = normalize_answer(gt)
+
+    pred_tokens = pred_norm.replace(".", " ").split()
+    gt_tokens = gt_norm.replace(".", " ").split()
+
+    return bool(gt_tokens) and gt_tokens[0] in pred_tokens
+
+
 def yes_no_match(pred: str, gt: str) -> bool:
     return parse_yes_no(pred) == parse_yes_no(gt)
+
+
+def is_yes_no_gt(gt: str) -> bool:
+    return normalize_answer(gt) in {"yes", "no"}
 
 
 def compute_accuracy(
@@ -23,14 +59,16 @@ def compute_accuracy(
     correct = 0
 
     for row in rows:
-        qtype = row.get("question_type", "")
+        qtype = get_qtype(row)
         gt = row.get(answer_key, "")
         pred = row.get(pred_key, "")
 
-        if "presence" in qtype or normalize_answer(gt) in {"yes", "no"}:
+        if is_yes_no_gt(gt):
             correct += yes_no_match(pred, gt)
+        elif qtype == "Q3_count":
+            correct += numeric_match(pred, gt)
         else:
-            correct += exact_match(pred, gt)
+            correct += option_match(pred, gt)
 
     return correct / len(rows)
 
@@ -40,8 +78,8 @@ def compute_flip_rate(
     perturbed_rows: List[Dict],
     pred_key: str = "prediction",
 ) -> float:
-    original_by_id = {r["qa_id"]: r for r in original_rows}
-    perturbed_by_id = {r["qa_id"]: r for r in perturbed_rows}
+    original_by_id = {get_id(r): r for r in original_rows}
+    perturbed_by_id = {get_id(r): r for r in perturbed_rows}
 
     common_ids = sorted(set(original_by_id) & set(perturbed_by_id))
 
@@ -62,7 +100,7 @@ def summarize_by_question_type(rows: List[Dict]) -> Dict[str, Dict[str, float]]:
     groups = defaultdict(list)
 
     for row in rows:
-        groups[row.get("question_type", "unknown")].append(row)
+        groups[get_qtype(row)].append(row)
 
     return {
         qtype: {

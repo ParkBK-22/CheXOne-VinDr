@@ -40,3 +40,6 @@ Thumbs.db
 *.log
 logs/
 wandb/
+
+# Credentialed QA files
+data/qa/*.jsonl
